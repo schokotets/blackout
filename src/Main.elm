@@ -178,6 +178,7 @@ blackBoxes model =
         , style "left" ( String.fromFloat ( box.left - 0.5 ) ++ "%")
         , style "width" ( String.fromFloat ( box.width + 1 ) ++ "%")
         , style "height" ( String.fromFloat ( box.height + 1 ) ++ "%")
+        , style "cursor" "pointer"
         , onClick (Toggle box.id)
         ] []) model.boxes 
     ) )
