@@ -1,0 +1,22 @@
+server/data
+
+
+# Based on https://www.toptal.com/developers/gitignore/api/elm,node
+
+### Elm ###
+# elm-package generated files
+elm-stuff
+# elm-repl generated files
+repl-temp-*
+
+
+### Node ###
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+# Dependency directories
+node_modules/

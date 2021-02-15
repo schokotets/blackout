@@ -1,0 +1,16 @@
+{
+  "name": "blackout_server",
+  "version": "1.0.0",
+  "description": "server backend for the blackout webapp",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "schokotets",
+  "license": "ISC",
+  "dependencies": {
+    "koa": "^2.13.1",
+    "koa-bodyparser": "^4.3.0",
+    "koa-static": "^5.0.0"
+  }
+}
