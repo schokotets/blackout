@@ -12,13 +12,14 @@ const serve = require('koa-static')
 app.use(serve("./static"))
 
 app.use(async ctx => {
-    if (ctx.path == "/areas") {
+    if (ctx.path == "/document") {
       let doc = ctx.request.query.doc
       if (!doc) return
       if (ctx.method == "POST") {
         save(doc, ctx.request.body)
         ctx.body = "OK"
       } else if (ctx.method == "GET") {
+        ctx.response.set("Access-Control-Allow-Origin", "*")
         ctx.body = load(doc)
       } else {
         ctx.throw(405, "method not allowed")

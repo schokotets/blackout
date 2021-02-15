@@ -7,11 +7,16 @@ import Html exposing (Html, Attribute, button, div, text, img, map, h1)
 import Html.Events exposing (onClick, on)
 import Html.Attributes exposing (src, style)
 import Json.Decode as Decode
+import Http
 
 -- MAIN
 
 main =
-  Browser.sandbox { init = init, update = update, view = view }
+  Browser.element {
+    init = init,
+    subscriptions = subscriptions,
+    update = update,
+    view = view }
 
 -- MODEL
 
@@ -35,19 +40,33 @@ type alias Model =
     }
 
 
-init : Model
-init =
+init : () -> (Model, Cmd Msg)
+init _ = (
   { page = 0
-  , boxes =
-    [ { id = 0, top = 1, left = 1, height = 2, width = 9, shown = True}
-    , { id = 1, top = 20,left = 1, height = 2, width = 9, shown = True}
-    , { id = 2, top = 5, left = 1, height = 2, width = 9, shown = True}
-    , { id = 3, top = 1, left = 40,height = 2, width = 9, shown = True}
-    ]
+  , boxes = []
   , selecting = False
   , startpos = { x = 0.0, y = 0.0 }
-  }
+  },
+  Http.get
+    { url = "http://localhost:8090/document?doc=0000"
+    , expect = Http.expectJson GotData documentDecoder
+    }
+  )
 
+
+documentDecoder : Decode.Decoder (List Box)
+documentDecoder =
+  Decode.field "boxes" (Decode.list boxDecoder)
+
+boxDecoder : Decode.Decoder Box
+boxDecoder =
+  Decode.map6 Box
+    (Decode.field "id" Decode.int)
+    (Decode.field "top" Decode.float)
+    (Decode.field "left" Decode.float)
+    (Decode.field "height" Decode.float)
+    (Decode.field "width" Decode.float)
+    (Decode.succeed True) -- shown
 
 
 -- UPDATE
@@ -56,47 +75,67 @@ init =
 type Msg
   = Increment
   | Decrement
-  | Toggle (Int)
-  | ClickPosition (Position)
+  | Toggle Int
+  | ClickPosition Position
+  | GotData (Result Http.Error (List Box))
 
 min : Float -> Float -> Float
 min a b = if a < b then a else b
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Increment ->
-      { model | page = model.page + 1 }
+      ( { model | page = model.page + 1 }
+      , Cmd.none )
 
     Decrement ->
-      { model | page = model.page + 1 }
+      ( { model | page = model.page + 1 }
+      , Cmd.none )
 
     Toggle id ->
-      { model | boxes = List.map (\box ->
-          if box.id == id then
-            { box | shown = not box.shown}
-          else box
-        ) model.boxes
-      }
+      ( { model |
+          boxes = List.map (\box ->
+            if box.id == id then
+              { box | shown = not box.shown}
+            else box
+          ) model.boxes
+      }, Cmd.none)
 
     ClickPosition pos ->
       if not model.selecting then
-          { model |
-              startpos = pos,
-              selecting = True }
+        ( { model |
+            startpos = pos,
+            selecting = True }
+        , Cmd.none )
       else
-          { model |
-            selecting = False,
-            boxes = 
-              [ { id = List.length model.boxes,
-                  left = 100* min pos.x model.startpos.x,
-                  top = 100 * min pos.y model.startpos.y,
-                  width = 100*abs(pos.x-model.startpos.x),
-                  height = 100*abs(pos.y-model.startpos.y),
-                  shown = True} ]
-              ++ model.boxes
-          }
+        ( { model |
+          selecting = False,
+          boxes =
+            [ { id = List.length model.boxes,
+                left = 100 * min pos.x model.startpos.x,
+                top  = 100 * min pos.y model.startpos.y,
+                width  = 100 * abs(pos.x-model.startpos.x),
+                height = 100 * abs(pos.y-model.startpos.y),
+                shown = True} ]
+            ++ model.boxes
+        }, Cmd.none)
+    GotData result ->
+      case result of
+        Ok boxes ->
+          ( { model |
+              boxes = boxes }
+          , Cmd.none )
+            --Debug.log fullText (model, Cmd.none)
+        Err _ ->
+          (model, Cmd.none)
 
+
+-- SUBSCRIPTIONS
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+  Sub.none
 
 
 -- VIEW
