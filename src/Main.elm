@@ -7,7 +7,7 @@ import Browser.Navigation as Nav
 import Url exposing (Url)
 import Url.Parser exposing ((<?>), query, s)
 import Url.Parser.Query
-import Html exposing (Html, Attribute, button, div, text, img, map, h1, a)
+import Html exposing (Html, Attribute, button, div, text, img, map, h1, h2, a)
 import Html.Events exposing (onClick, on)
 import Html.Attributes exposing (src, style, href)
 import Json.Decode as Decode
@@ -46,6 +46,8 @@ type alias Model =
     , boxes: List Box
     , selecting: Bool
     , startpos: Position
+    , name: String
+    , url: String
     }
 
 queryParser : Url.Parser.Parser (Maybe String -> Maybe String) (Maybe String)
@@ -61,6 +63,8 @@ init _ url key =
   , boxes = []
   , selecting = False
   , startpos = { x = 0.0, y = 0.0 }
+  , name = "Loading..."
+  , url = ""
   },
   Http.get
     { url = "/document?doc=" ++ doc
@@ -69,9 +73,12 @@ init _ url key =
   )
 
 
-documentDecoder : Decode.Decoder (List Box)
+documentDecoder : Decode.Decoder (List Box, String, String)
 documentDecoder =
-  Decode.field "boxes" (Decode.list boxDecoder)
+  Decode.map3 (\boxes url name -> (boxes, url, name))
+    (Decode.field "boxes" (Decode.list boxDecoder))
+    (Decode.field "url" Decode.string)
+    (Decode.field "name" Decode.string)
 
 boxDecoder : Decode.Decoder Box
 boxDecoder =
@@ -106,7 +113,7 @@ encodeDocument model =
 type Msg
   = Toggle Int
   | ClickPosition Position
-  | GotData (Result Http.Error (List Box))
+  | GotData (Result Http.Error (List Box, String, String))
   | GotText (Result Http.Error String)
   | Save
   | LinkClicked Browser.UrlRequest
@@ -149,9 +156,11 @@ update msg model =
       (model, Cmd.none)
     GotData result ->
       case result of
-        Ok boxes ->
-          ( { model |
-              boxes = boxes }
+        Ok (boxes,url,name) ->
+          ( { model
+            | boxes = boxes
+            , url = url
+            , name = name }
           , Cmd.none )
             --Debug.log fullText (model, Cmd.none)
         Err _ ->
@@ -203,7 +212,7 @@ view model =
         img [
           style "width" "100%",
           style "filter" (if model.selecting then "brightness(0.9)" else "unset"),
-          src "material/20210214_111358860.jpg"
+          src model.url
         ] [ text "+" ],
         blackBoxes model
       ]

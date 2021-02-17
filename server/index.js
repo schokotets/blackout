@@ -19,7 +19,22 @@ app.use(async ctx => {
         save(doc, ctx.request.body)
         ctx.body = "OK"
       } else if (ctx.method == "GET") {
-        ctx.body = load(doc)
+        let doclist = JSON.parse(loadFileList())
+
+        let doctext = load(doc)
+        let docinfo = JSON.parse(doctext)
+
+        let matchdocs = doclist["documents"].filter(e => e.id == doc)
+        if (matchdocs.length >= 1) {
+          docinfo.url = matchdocs[0].url
+          docinfo.name = matchdocs[0].name
+          if (! ("boxes" in docinfo)) {
+            docinfo.boxes = []
+          }
+          ctx.body = JSON.stringify(docinfo)
+        } else {
+          return docinfo
+        }
       } else {
         ctx.throw(405, "method not allowed")
       }
