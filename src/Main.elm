@@ -200,9 +200,9 @@ view : Model -> Browser.Document Msg
 view model =
   { title = ""
   , body = [ div [] [
-    div
-    [ style "margin" "0.5em" ]
-    [ h1 [] [ text "Blackout" ]
+    div []
+    [ h1 [ style "display" "inline-block", style "margin-left" "0.5rem" ] [ text "Blackout" ]
+    , h2 [ style "display" "inline-block", style "margin-left" "0.5rem" ] [ text model.name ]
     , a
       [ href "/menu.html"
       , style "margin" "0.5em" ] [ text "Menu" ]
