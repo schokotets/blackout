@@ -190,10 +190,15 @@ subscriptions model =
 view : Model -> Browser.Document Msg
 view model =
   { title = ""
-  , body = [ div []
+  , body = [ div [] [
+    div
+    [ style "margin" "0.5em" ]
     [ h1 [] [ text "Blackout" ]
-    , a [ href "/menu.html" ] [ text "Menu" ]
+    , a
+      [ href "/menu.html"
+      , style "margin" "0.5em" ] [ text "Menu" ]
     , button [ onClick Save ] [ text "Save" ]
+    ]
     , div [ style "position" "relative" ] [
         img [
           style "width" "100%",
@@ -203,7 +208,7 @@ view model =
         blackBoxes model
       ]
     ]
-  ]}
+    ]}
 
 blackBoxes : Model -> Html Msg
 blackBoxes model = 
