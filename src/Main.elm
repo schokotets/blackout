@@ -40,6 +40,11 @@ type alias Box =
 type alias Position =
     { x: Float, y: Float }
 
+type Mode
+    = Viewing
+    | Editing
+    | Deleting
+
 type alias Model = 
     { document: String
     , navkey: Nav.Key
@@ -48,6 +53,7 @@ type alias Model =
     , startpos: Position
     , name: String
     , url: String
+    , mode: Mode
     }
 
 queryParser : Url.Parser.Parser (Maybe String -> Maybe String) (Maybe String)
@@ -65,6 +71,7 @@ init _ url key =
   , startpos = { x = 0.0, y = 0.0 }
   , name = "Loading..."
   , url = ""
+  , mode = Viewing
   },
   Http.get
     { url = "/document?doc=" ++ doc
@@ -118,6 +125,8 @@ type Msg
   | Save
   | LinkClicked Browser.UrlRequest
   | UrlChanged Url
+  | SetModeViewing
+  | SetModeEditing
 
 min : Float -> Float -> Float
 min a b = if a < b then a else b
@@ -185,6 +194,16 @@ update msg model =
     UrlChanged url ->
       ( model, Cmd.none )
 
+    SetModeEditing ->
+      ( { model
+        | mode = Editing }
+      , Cmd.none )
+
+    SetModeViewing ->
+      ( { model
+        | mode = Viewing }
+      , Cmd.none )
+
 
 -- SUBSCRIPTIONS
 
@@ -206,6 +225,8 @@ view model =
     , a
       [ href "/menu.html"
       , style "margin" "0.5em" ] [ text "Menu" ]
+    , button [ onClick (if model.mode == Editing then SetModeViewing else SetModeEditing) ]
+      [ text (if model.mode == Editing then "Done" else "Edit") ]
     , button [ onClick Save ] [ text "Save" ]
     ]
     , div [ style "position" "relative" ] [
@@ -223,15 +244,20 @@ blackBoxes : Model -> Html Msg
 blackBoxes model = 
   div [] (
       -- A div to capture the non-box click events
-      div [ style "position" "absolute"
+      div ( List.append
+        [ style "position" "absolute"
         , style "width" "100%"
         , style "height" "100%"
         , style "top" "0px"
         , style "left" "0px"
-        , style "cursor" "crosshair"
-        , onClickPos
-        ] []
-      :: (
+        ] (
+          if model.mode == Editing
+          then [
+            style "cursor" "crosshair",
+            onClickCreateBox
+          ] else []
+        ))
+      [] :: (
       List.map (\box -> div
         [ style "position" "absolute"
         , style "backgroundColor" ( if box.shown then "black" else "unset" )
@@ -251,8 +277,8 @@ genPosition sleft stop left top w h x y =
         y = toFloat (y-top +stop )/(toFloat h)
     })
 
-onClickPos : Attribute Msg
-onClickPos =
+onClickCreateBox : Attribute Msg
+onClickCreateBox =
   on "click" (Decode.map8 genPosition
       (Decode.at [ "target", "parentNode", "parentNode", "parentNode", "parentNode", "parentNode", "scrollLeft" ] Decode.int)
       (Decode.at [ "target", "parentNode", "parentNode", "parentNode", "parentNode", "parentNode", "scrollTop" ] Decode.int)
