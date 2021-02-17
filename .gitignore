@@ -1,4 +1,5 @@
 server/data
+build/
 
 
 # Based on https://www.toptal.com/developers/gitignore/api/elm,node
