@@ -3,9 +3,13 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, Attribute, button, div, text, img, map, h1)
+import Browser.Navigation as Nav
+import Url exposing (Url)
+import Url.Parser exposing ((<?>), query, s)
+import Url.Parser.Query
+import Html exposing (Html, Attribute, button, div, text, img, map, h1, a)
 import Html.Events exposing (onClick, on)
-import Html.Attributes exposing (src, style)
+import Html.Attributes exposing (src, style, href)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Http
@@ -13,11 +17,14 @@ import Http
 -- MAIN
 
 main =
-  Browser.element {
-    init = init,
-    subscriptions = subscriptions,
-    update = update,
-    view = view }
+  Browser.application
+    { init = init
+    , subscriptions = subscriptions
+    , update = update
+    , view = view
+    , onUrlChange = UrlChanged
+    , onUrlRequest = LinkClicked
+    }
 
 -- MODEL
 
@@ -34,22 +41,29 @@ type alias Position =
     { x: Float, y: Float }
 
 type alias Model = 
-    { page: Int
+    { document: String
+    , navkey: Nav.Key
     , boxes: List Box
     , selecting: Bool
     , startpos: Position
     }
 
+queryParser : Url.Parser.Parser (Maybe String -> Maybe String) (Maybe String)
+queryParser =
+    s "index.html" <?> Url.Parser.Query.string "doc"
 
-init : () -> (Model, Cmd Msg)
-init _ = (
-  { page = 0
+init : () -> Url -> Nav.Key -> (Model, Cmd Msg)
+init _ url key =
+  let doc = Maybe.withDefault "0000" ( Maybe.withDefault Nothing (Url.Parser.parse queryParser url))
+  in (
+  { document = doc
+  , navkey = key
   , boxes = []
   , selecting = False
   , startpos = { x = 0.0, y = 0.0 }
   },
   Http.get
-    { url = "/document?doc=0000"
+    { url = "/document?doc=" ++ doc
     , expect = Http.expectJson GotData documentDecoder
     }
   )
@@ -90,13 +104,13 @@ encodeDocument model =
 
 
 type Msg
-  = Increment
-  | Decrement
-  | Toggle Int
+  = Toggle Int
   | ClickPosition Position
   | GotData (Result Http.Error (List Box))
   | GotText (Result Http.Error String)
   | Save
+  | LinkClicked Browser.UrlRequest
+  | UrlChanged Url
 
 min : Float -> Float -> Float
 min a b = if a < b then a else b
@@ -104,14 +118,6 @@ min a b = if a < b then a else b
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Increment ->
-      ( { model | page = model.page + 1 }
-      , Cmd.none )
-
-    Decrement ->
-      ( { model | page = model.page + 1 }
-      , Cmd.none )
-
     Toggle id ->
       ( { model |
           boxes = List.map (\box ->
@@ -152,11 +158,23 @@ update msg model =
           (model, Cmd.none)
     Save ->
       (model, Http.post
-        { url = "/document?doc=0000"
+        { url = "/document?doc=" ++ model.document
         , expect = Http.expectString GotText
         , body = Http.jsonBody ( encodeDocument model )
         }
       )
+
+    LinkClicked urlRequest ->
+      case urlRequest of
+        Browser.Internal url ->
+          ( model, Nav.load (Url.toString url) )
+          --( model, Nav.pushUrl model.key (Url.toString url) )
+
+        Browser.External href ->
+          ( model, Nav.load href )
+
+    UrlChanged url ->
+      ( model, Cmd.none )
 
 
 -- SUBSCRIPTIONS
@@ -169,13 +187,12 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-  div []
+  { title = ""
+  , body = [ div []
     [ h1 [] [ text "Blackout" ]
-    , button [ onClick Decrement ] [ text "-" ]
-    , div [] [ text (String.fromInt model.page) ]
-    , button [ onClick Increment ] [ text "+" ]
+    , a [ href "/menu.html" ] [ text "Menu" ]
     , button [ onClick Save ] [ text "Save" ]
     , div [ style "position" "relative" ] [
         img [
@@ -186,6 +203,7 @@ view model =
         blackBoxes model
       ]
     ]
+  ]}
 
 blackBoxes : Model -> Html Msg
 blackBoxes model = 

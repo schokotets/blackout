@@ -3,6 +3,7 @@
 module Menu exposing (..)
 
 import Browser
+import Browser.Navigation as Nav
 import Html exposing (Html, Attribute, button, div, text, img, map, h1, h2, ul, li)
 import Html.Events exposing (onClick, on)
 import Html.Attributes exposing (src, style)
@@ -63,9 +64,9 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Navigate str ->
+    Navigate doc ->
       ( model
-      , Cmd.none )
+      , Nav.load ("/index.html?doc="++doc) )
     GotData result ->
       case result of
         Ok documents ->
