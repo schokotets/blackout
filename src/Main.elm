@@ -48,7 +48,7 @@ init _ = (
   , startpos = { x = 0.0, y = 0.0 }
   },
   Http.get
-    { url = "http://localhost:8090/document?doc=0000"
+    { url = "/document?doc=0000"
     , expect = Http.expectJson GotData documentDecoder
     }
   )

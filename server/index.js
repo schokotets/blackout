@@ -9,7 +9,7 @@ app.use(bodyParser({
 }))
 
 const serve = require('koa-static')
-app.use(serve("./static"))
+app.use(serve("../build"))
 
 app.use(async ctx => {
     if (ctx.path == "/document") {
@@ -19,7 +19,6 @@ app.use(async ctx => {
         save(doc, ctx.request.body)
         ctx.body = "OK"
       } else if (ctx.method == "GET") {
-        ctx.response.set("Access-Control-Allow-Origin", "*")
         ctx.body = load(doc)
       } else {
         ctx.throw(405, "method not allowed")
