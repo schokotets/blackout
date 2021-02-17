@@ -23,6 +23,12 @@ app.use(async ctx => {
       } else {
         ctx.throw(405, "method not allowed")
       }
+    } else if (ctx.path == "/documentlist") {
+      if (ctx.method == "GET") {
+        ctx.body = loadFileList()
+      } else {
+        ctx.throw(405, "method not allowed")
+      }
     } else {
       ctx.throw(404, "page not found")
     }
@@ -55,3 +61,7 @@ function load(doc) {
   }
 }
 
+
+function loadFileList() {
+  return load("documents")
+}
