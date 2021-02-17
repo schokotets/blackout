@@ -7,6 +7,7 @@ import Html exposing (Html, Attribute, button, div, text, img, map, h1)
 import Html.Events exposing (onClick, on)
 import Html.Attributes exposing (src, style)
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Http
 
 -- MAIN
@@ -64,9 +65,25 @@ boxDecoder =
     (Decode.field "id" Decode.int)
     (Decode.field "top" Decode.float)
     (Decode.field "left" Decode.float)
-    (Decode.field "height" Decode.float)
     (Decode.field "width" Decode.float)
+    (Decode.field "height" Decode.float)
     (Decode.succeed True) -- shown
+
+
+encodeDocument : Model -> Encode.Value
+encodeDocument model =
+  Encode.object
+    [ ( "boxes", Encode.list (\box ->
+        Encode.object
+          [ ("id", Encode.int box.id),
+            ("top", Encode.float box.top),
+            ("left", Encode.float box.left),
+            ("width", Encode.float box.width),
+            ("height", Encode.float box.height)
+          ]
+      ) model.boxes
+      )
+    ]
 
 
 -- UPDATE
@@ -78,6 +95,8 @@ type Msg
   | Toggle Int
   | ClickPosition Position
   | GotData (Result Http.Error (List Box))
+  | GotText (Result Http.Error String)
+  | Save
 
 min : Float -> Float -> Float
 min a b = if a < b then a else b
@@ -120,6 +139,8 @@ update msg model =
                 shown = True} ]
             ++ model.boxes
         }, Cmd.none)
+    GotText _ ->
+      (model, Cmd.none)
     GotData result ->
       case result of
         Ok boxes ->
@@ -129,6 +150,13 @@ update msg model =
             --Debug.log fullText (model, Cmd.none)
         Err _ ->
           (model, Cmd.none)
+    Save ->
+      (model, Http.post
+        { url = "/document?doc=0000"
+        , expect = Http.expectString GotText
+        , body = Http.jsonBody ( encodeDocument model )
+        }
+      )
 
 
 -- SUBSCRIPTIONS
@@ -148,6 +176,7 @@ view model =
     , button [ onClick Decrement ] [ text "-" ]
     , div [] [ text (String.fromInt model.page) ]
     , button [ onClick Increment ] [ text "+" ]
+    , button [ onClick Save ] [ text "Save" ]
     , div [ style "position" "relative" ] [
         img [
           style "width" "100%",
