@@ -64,13 +64,18 @@ type alias DocumentInfo =
     }
 
 
+type alias EditingStatus =
+    { selecting : Bool
+    , startpos : Position
+    , mode : Mode
+    }
+
+
 type alias Model =
     { document : String
     , navkey : Nav.Key
-    , selecting : Bool
     , documentinfo : DocumentInfo
-    , startpos : Position
-    , mode : Mode
+    , editingstatus : EditingStatus
     }
 
 
@@ -87,8 +92,11 @@ init _ url key =
     in
     ( { document = doc
       , navkey = key
-      , selecting = False
-      , startpos = { x = 0.0, y = 0.0 }
+      , editingstatus =
+            { selecting = False
+            , startpos = { x = 0.0, y = 0.0 }
+            , mode = Viewing
+            }
       , documentinfo =
             { name = "Loading..."
             , boxes = []
@@ -96,7 +104,6 @@ init _ url key =
             , next = ""
             , url = ""
             }
-      , mode = Viewing
       }
     , Http.get
         { url = "/document?doc=" ++ doc
@@ -201,10 +208,17 @@ update msg model =
             )
 
         ClickPosition pos ->
-            if not model.selecting then
+            let
+                editingstatus =
+                    model.editingstatus
+            in
+            if not model.editingstatus.selecting then
                 ( { model
-                    | startpos = pos
-                    , selecting = True
+                    | editingstatus =
+                        { editingstatus
+                            | startpos = pos
+                            , selecting = True
+                        }
                   }
                 , Cmd.none
                 )
@@ -215,15 +229,15 @@ update msg model =
                         model.documentinfo
                 in
                 ( { model
-                    | selecting = False
+                    | editingstatus = { editingstatus | selecting = False }
                     , documentinfo =
                         { documentinfo
                             | boxes =
                                 [ { id = List.length documentinfo.boxes
-                                  , left = 100 * min pos.x model.startpos.x
-                                  , top = 100 * min pos.y model.startpos.y
-                                  , width = 100 * abs (pos.x - model.startpos.x)
-                                  , height = 100 * abs (pos.y - model.startpos.y)
+                                  , left = 100 * min pos.x model.editingstatus.startpos.x
+                                  , top = 100 * min pos.y model.editingstatus.startpos.y
+                                  , width = 100 * abs (pos.x - model.editingstatus.startpos.x)
+                                  , height = 100 * abs (pos.y - model.editingstatus.startpos.y)
                                   , shown = True
                                   }
                                 ]
@@ -271,15 +285,23 @@ update msg model =
             ( model, Cmd.none )
 
         SetModeEditing ->
+            let
+                editingstatus =
+                    model.editingstatus
+            in
             ( { model
-                | mode = Editing
+                | editingstatus = { editingstatus | mode = Editing }
               }
             , Cmd.none
             )
 
         SetModeViewing ->
+            let
+                editingstatus =
+                    model.editingstatus
+            in
             ( { model
-                | mode = Viewing
+                | editingstatus = { editingstatus | mode = Viewing }
               }
             , Cmd.none
             )
@@ -324,7 +346,7 @@ view model =
                     [ text "Next" ]
                 , button
                     [ onClick
-                        (if model.mode == Editing then
+                        (if model.editingstatus.mode == Editing then
                             SetModeViewing
 
                          else
@@ -332,7 +354,7 @@ view model =
                         )
                     ]
                     [ text
-                        (if model.mode == Editing then
+                        (if model.editingstatus.mode == Editing then
                             "Done"
 
                          else
@@ -345,7 +367,7 @@ view model =
                 [ img
                     [ style "width" "100%"
                     , style "filter"
-                        (if model.selecting then
+                        (if model.editingstatus.selecting then
                             "brightness(0.9)"
 
                          else
@@ -373,7 +395,7 @@ blackBoxes model =
                 , style "top" "0px"
                 , style "left" "0px"
                 ]
-                (if model.mode == Editing then
+                (if model.editingstatus.mode == Editing then
                     [ style "cursor" "crosshair"
                     , onClickCreateBox
                     ]
