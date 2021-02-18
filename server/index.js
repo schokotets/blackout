@@ -19,13 +19,16 @@ app.use(async ctx => {
         save(doc, ctx.request.body)
         ctx.body = "OK"
       } else if (ctx.method == "GET") {
-        let doclist = JSON.parse(loadFileList())
+        let doclist = JSON.parse(loadFileList()).documents
 
         let doctext = load(doc)
         let docinfo = JSON.parse(doctext)
 
-        let matchdocs = doclist["documents"].filter(e => e.id == doc)
+        let matchdocs = doclist.filter(e => e.id == doc)
         if (matchdocs.length >= 1) {
+          let index = doclist.indexOf(matchdocs[0])
+          docinfo.prev = (index == 0) ? "" : doclist[index-1].id
+          docinfo.next = (index == doclist.length - 1) ? "" : doclist[index+1].id
           docinfo.url = matchdocs[0].url
           docinfo.name = matchdocs[0].name
           if (! ("boxes" in docinfo)) {
