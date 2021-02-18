@@ -212,15 +212,22 @@ update msg model =
 
         UndoLastBox ->
             let
+                editingstatus =
+                    model.editingstatus
+
                 documentinfo =
                     model.documentinfo
 
                 lastboxid =
                     Maybe.withDefault -1
-                        (List.head model.editingstatus.newboxids)
+                        (List.head editingstatus.newboxids)
             in
             ( { model
-                | documentinfo =
+                | editingstatus =
+                    { editingstatus
+                        | newboxids = Maybe.withDefault [] (List.tail editingstatus.newboxids)
+                    }
+                , documentinfo =
                     { documentinfo
                         | boxes =
                             List.filter
@@ -357,6 +364,11 @@ subscriptions model =
 -- VIEW
 
 
+nothing : Html msg
+nothing =
+    text ""
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = ""
@@ -398,7 +410,11 @@ view model =
                             "Edit"
                         )
                     ]
-                , button [ onClick Save ] [ text "Save" ]
+                , if model.editingstatus.mode == Editing then
+                    button [ onClick Save ] [ text "Save" ]
+
+                  else
+                    nothing
                 , button
                     [ if
                         model.editingstatus.mode
