@@ -7,7 +7,7 @@ import Browser.Navigation as Nav
 import Url exposing (Url)
 import Url.Parser exposing ((<?>), query, s)
 import Url.Parser.Query
-import Html exposing (Html, Attribute, button, div, text, img, map, h1, h2, a)
+import Html exposing (Html, Attribute, button, div, text, img, map, h1, h2, a, br)
 import Html.Events exposing (onClick, on)
 import Html.Attributes exposing (src, style, href)
 import Json.Decode as Decode
@@ -45,14 +45,21 @@ type Mode
     | Editing
     | Deleting
 
+type alias DocumentInfo =
+    { boxes: List Box
+    , name: String
+    , prev: String
+    , next: String
+    , url: String
+    }
+
+
 type alias Model = 
     { document: String
     , navkey: Nav.Key
-    , boxes: List Box
     , selecting: Bool
+    , documentinfo: DocumentInfo
     , startpos: Position
-    , name: String
-    , url: String
     , mode: Mode
     }
 
@@ -66,11 +73,15 @@ init _ url key =
   in (
   { document = doc
   , navkey = key
-  , boxes = []
   , selecting = False
   , startpos = { x = 0.0, y = 0.0 }
-  , name = "Loading..."
-  , url = ""
+  , documentinfo =
+    { name = "Loading..."
+    , boxes = []
+    , prev = ""
+    , next = ""
+    , url = ""
+    }
   , mode = Viewing
   },
   Http.get
@@ -79,13 +90,14 @@ init _ url key =
     }
   )
 
-
-documentDecoder : Decode.Decoder (List Box, String, String)
+documentDecoder : Decode.Decoder DocumentInfo
 documentDecoder =
-  Decode.map3 (\boxes url name -> (boxes, url, name))
+  Decode.map5 DocumentInfo
     (Decode.field "boxes" (Decode.list boxDecoder))
-    (Decode.field "url" Decode.string)
     (Decode.field "name" Decode.string)
+    (Decode.field "prev" Decode.string)
+    (Decode.field "next" Decode.string)
+    (Decode.field "url" Decode.string)
 
 boxDecoder : Decode.Decoder Box
 boxDecoder =
@@ -109,7 +121,7 @@ encodeDocument model =
             ("width", Encode.float box.width),
             ("height", Encode.float box.height)
           ]
-      ) model.boxes
+      ) model.documentinfo.boxes
       )
     ]
 
@@ -120,7 +132,7 @@ encodeDocument model =
 type Msg
   = Toggle Int
   | ClickPosition Position
-  | GotData (Result Http.Error (List Box, String, String))
+  | GotData (Result Http.Error DocumentInfo)
   | GotText (Result Http.Error String)
   | Save
   | LinkClicked Browser.UrlRequest
@@ -135,12 +147,15 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Toggle id ->
-      ( { model |
-          boxes = List.map (\box ->
-            if box.id == id then
-              { box | shown = not box.shown}
-            else box
-          ) model.boxes
+      let documentinfo = model.documentinfo
+      in ( { model |
+          documentinfo =
+            { documentinfo
+            | boxes = List.map (\box ->
+              if box.id == id then
+                { box | shown = not box.shown}
+              else box
+            ) documentinfo.boxes }
       }, Cmd.none)
 
     ClickPosition pos ->
@@ -150,26 +165,28 @@ update msg model =
             selecting = True }
         , Cmd.none )
       else
-        ( { model |
+        let documentinfo = model.documentinfo
+        in ( { model |
           selecting = False,
-          boxes =
-            [ { id = List.length model.boxes,
-                left = 100 * min pos.x model.startpos.x,
-                top  = 100 * min pos.y model.startpos.y,
-                width  = 100 * abs(pos.x-model.startpos.x),
-                height = 100 * abs(pos.y-model.startpos.y),
-                shown = True} ]
-            ++ model.boxes
+          documentinfo =
+            { documentinfo
+            | boxes =
+               [ { id = List.length documentinfo.boxes,
+                   left = 100 * min pos.x model.startpos.x,
+                   top  = 100 * min pos.y model.startpos.y,
+                   width  = 100 * abs(pos.x-model.startpos.x),
+                   height = 100 * abs(pos.y-model.startpos.y),
+                   shown = True} ]
+               ++ documentinfo.boxes
+            }
         }, Cmd.none)
     GotText _ ->
       (model, Cmd.none)
     GotData result ->
       case result of
-        Ok (boxes,url,name) ->
+        Ok documentinfo ->
           ( { model
-            | boxes = boxes
-            , url = url
-            , name = name }
+            | documentinfo = documentinfo }
           , Cmd.none )
             --Debug.log fullText (model, Cmd.none)
         Err _ ->
@@ -220,11 +237,18 @@ view model =
   { title = ""
   , body = [ div [] [
     div []
-    [ h1 [ style "display" "inline-block", style "margin-left" "0.5rem" ] [ text "Blackout" ]
-    , h2 [ style "display" "inline-block", style "margin-left" "0.5rem" ] [ text model.name ]
+    [ h1 [ style "display" "inline-block", style "margin" "0 0.5rem" ] [ text "Blackout" ]
+    , h2 [ style "display" "inline-block", style "margin" "0 0.5rem" ] [ text model.documentinfo.name ]
+    , br [] []
+    , a
+      [ href ("/index.html?doc=" ++ model.documentinfo.prev)
+      , style "margin" "0.5em" ] [ text "Prev" ]
     , a
       [ href "/menu.html"
       , style "margin" "0.5em" ] [ text "Menu" ]
+    , a
+      [ href ("/index.html?doc=" ++ model.documentinfo.next)
+      , style "margin" "0.5em" ] [ text "Next" ]
     , button [ onClick (if model.mode == Editing then SetModeViewing else SetModeEditing) ]
       [ text (if model.mode == Editing then "Done" else "Edit") ]
     , button [ onClick Save ] [ text "Save" ]
@@ -233,7 +257,7 @@ view model =
         img [
           style "width" "100%",
           style "filter" (if model.selecting then "brightness(0.9)" else "unset"),
-          src model.url
+          src model.documentinfo.url
         ] [ text "+" ],
         blackBoxes model
       ]
@@ -267,7 +291,7 @@ blackBoxes model =
         , style "height" ( String.fromFloat ( box.height + 1 ) ++ "%")
         , style "cursor" "pointer"
         , onClick (Toggle box.id)
-        ] []) model.boxes 
+        ] []) model.documentinfo.boxes
     ) )
 
 genPosition : Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Msg
