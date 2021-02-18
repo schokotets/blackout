@@ -371,7 +371,7 @@ nothing =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = ""
+    { title = model.documentinfo.name ++ " - Blackout"
     , body =
         [ div []
             [ div []
