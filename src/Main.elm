@@ -68,6 +68,7 @@ type alias EditingStatus =
     { selecting : Bool
     , startpos : Position
     , mode : Mode
+    , newboxids : List Int
     }
 
 
@@ -96,6 +97,7 @@ init _ url key =
             { selecting = False
             , startpos = { x = 0.0, y = 0.0 }
             , mode = Viewing
+            , newboxids = []
             }
       , documentinfo =
             { name = "Loading..."
@@ -170,6 +172,7 @@ type Msg
     | UrlChanged Url
     | SetModeViewing
     | SetModeEditing
+    | UndoLastBox
 
 
 min : Float -> Float -> Float
@@ -207,6 +210,29 @@ update msg model =
             , Cmd.none
             )
 
+        UndoLastBox ->
+            let
+                documentinfo =
+                    model.documentinfo
+
+                lastboxid =
+                    Maybe.withDefault -1
+                        (List.head model.editingstatus.newboxids)
+            in
+            ( { model
+                | documentinfo =
+                    { documentinfo
+                        | boxes =
+                            List.filter
+                                (\box ->
+                                    box.id /= lastboxid
+                                )
+                                documentinfo.boxes
+                    }
+              }
+            , Cmd.none
+            )
+
         ClickPosition pos ->
             let
                 editingstatus =
@@ -227,13 +253,24 @@ update msg model =
                 let
                     documentinfo =
                         model.documentinfo
+
+                    newboxid =
+                        Maybe.withDefault -1
+                            (List.maximum
+                                (List.map (\box -> box.id) model.documentinfo.boxes)
+                            )
+                            + 1
                 in
                 ( { model
-                    | editingstatus = { editingstatus | selecting = False }
+                    | editingstatus =
+                        { editingstatus
+                            | selecting = False
+                            , newboxids = newboxid :: editingstatus.newboxids
+                        }
                     , documentinfo =
                         { documentinfo
                             | boxes =
-                                [ { id = List.length documentinfo.boxes
+                                [ { id = newboxid
                                   , left = 100 * min pos.x model.editingstatus.startpos.x
                                   , top = 100 * min pos.y model.editingstatus.startpos.y
                                   , width = 100 * abs (pos.x - model.editingstatus.startpos.x)
@@ -362,6 +399,20 @@ view model =
                         )
                     ]
                 , button [ onClick Save ] [ text "Save" ]
+                , button
+                    [ if
+                        model.editingstatus.mode
+                            == Editing
+                            && List.length model.editingstatus.newboxids
+                            /= 0
+                      then
+                        onClick
+                            UndoLastBox
+
+                      else
+                        style "display" "none"
+                    ]
+                    [ text "Undo" ]
                 ]
             , div [ style "position" "relative" ]
                 [ img
