@@ -70,6 +70,9 @@ function save(doc, data) {
 
 function load(doc) {
   try {
+    if (!/^\d+$/.test(doc)) {
+      throw new Error("invalid document id: may only contain digits")
+    }
     const data = fs.readFileSync(path.join("data",doc+".json"), 'utf8')
     console.log(data)
     return data
